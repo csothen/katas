@@ -4,6 +4,16 @@ This repository serves the purpose of storing solutions related to the [CodeKata
 
 All solutions will be developed in [Go](https://golang.org/)
 
+## Get started
+
+To run the tests for a Kata you need to:
+
+1. Clone the repository
+2. Change directory into the Kata you want to test
+3. Run `go test`
+
+In case you want to do custom tests you can edit the `main.go` file and call any kata with specific inputs or add your own tests
+
 ## Progress
 
 - [ ] [Kata 01 - Supermarket Pricing](http://codekata.com/kata/kata01-supermarket-pricing/)
@@ -27,13 +37,3 @@ All solutions will be developed in [Go](https://golang.org/)
 - [x] [Kata 19 - Word Chains](http://codekata.com/kata/kata19-word-chains/) ([solution](https://github.com/csothen/katas/blob/master/kata19/main.go))
 - [ ] [Kata 20 - Klondike](http://codekata.com/kata/kata20-klondike/)
 - [ ] [Kata 21 - Simple Lists](http://codekata.com/kata/kata21-simple-lists/)
-
-## Get started
-
-To run the tests for a Kata you need to:
-
-1. Clone the repository
-2. Change directory into the Kata you want to test
-3. Run `go test`
-
-In case you want to do custom tests you can edit the `main.go` file and call any kata with specific inputs or add your own tests
