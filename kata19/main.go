@@ -3,106 +3,133 @@ package kata19
 import (
 	"bufio"
 	"fmt"
-	"net/http"
+	"log"
+	"os"
 )
 
 const (
-	dictionaryUrl = "http://codekata.com/data/wordlist.txt"
+	SEARCH_LIMIT = 15000
 )
 
-type Word struct {
-	word    string
-	visited bool
-}
+var (
+	candidates = []string{}
+	tracker    = make(map[string]interface{})
+	count      = 0
+)
+
+var (
+	ErrDifferentLengths    = fmt.Errorf("words must be of same length")
+	ErrWordNotInDictionary = fmt.Errorf("word is not in the dictionary")
+	ErrChainNotFound       = fmt.Errorf("couldn't find a valid chain")
+	ErrSearchLimitReached  = fmt.Errorf("exceeded search limit")
+)
 
 func Execute(start, end string) []string {
-	dictionary, err := buildDictionary()
+	if len(start) != len(end) {
+		log.Fatal(ErrDifferentLengths)
+	}
+
+	if start == end {
+		return []string{start}
+	}
+
+	dictionary, err := buildDictionary(len(start))
 	if err != nil {
-		panic(err)
+		log.Fatal("Error building dictionary: ", err)
 	}
-	return buildChain(start, end, dictionary)
+
+	if err := checkExists(dictionary, start); err != nil {
+		log.Fatal(err, start)
+	}
+
+	if err := checkExists(dictionary, end); err != nil {
+		log.Fatal(err, end)
+	}
+
+	candidates = append([]string{}, start)
+	tracker = make(map[string]interface{})
+	tracker[start] = nil
+	count = 0
+
+	words, err := buildChain(end, dictionary)
+	if err != nil {
+		log.Fatal("Error building word chain: ", err)
+	}
+
+	return words
 }
 
-func buildChain(start, end string, dictionary []Word) []string {
-	chain := []string{start}
-	current := start
-
-	for {
-		fmt.Println(current)
-		word := findWord(current, end, dictionary)
-		if word == nil {
-			return []string{}
-		}
-
-		current = *word
-		chain = append(chain, current)
-		if current == end {
-			break
-		}
-	}
-
-	return chain
-}
-
-func findWord(start, end string, dictionary []Word) *string {
-	left, right := 0, len(dictionary)-1
-	auxDictionary := dictionary
-	return binarySearch(start, end, auxDictionary, left, right)
-}
-
-func binarySearch(start, end string, dictionary []Word, left, right int) *string {
-	if right < left {
-		return nil
-	}
-
-	mid := left + (right-left)/2
-
-	if isValid(dictionary[mid], start, end) {
-		return &dictionary[mid].word
-	}
-	dictionary[mid].visited = true
-
-	if dictionary[mid].word > end {
-		return binarySearch(start, end, dictionary, left, mid-1)
-	}
-
-	// Otherwise it is to the right
-	return binarySearch(start, end, dictionary, mid+1, right)
-}
-
-func isValid(w Word, current, target string) bool {
-	if w.visited || len(w.word) != len(target) {
-		return false
-	}
-
-	a := []rune(current)
-	b := []rune(target)
-	count := 0
-
-	for i, c := range w.word {
-		if a[i] != c && b[i] == c {
-			count = count + 1
+func checkExists(dictionary []string, word string) error {
+	for _, w := range dictionary {
+		if w == word {
+			return nil
 		}
 	}
 
-	return count == 1
+	return ErrWordNotInDictionary
 }
 
-func buildDictionary() ([]Word, error) {
-	dictionary := []Word{}
+func buildChain(end string, dictionary []string) ([]string, error) {
+	for len(candidates) > 0 {
+		count++
+		if count > SEARCH_LIMIT {
+			return nil, ErrSearchLimitReached
+		}
+		candidate := candidates[0]
+		candidates = candidates[1:]
 
-	resp, err := http.Get(dictionaryUrl)
+		for _, word := range dictionary {
+			_, seen := tracker[word]
+			if !seen && adjacent(candidate, word) {
+				tracker[word] = candidate
+				if end == word {
+					return result(word), nil
+				}
+				candidates = append(candidates, word)
+			}
+		}
+	}
+	return nil, ErrChainNotFound
+}
+
+func adjacent(a, b string) bool {
+	diff := 0
+	for i := range a {
+		if a[i] != b[i] {
+			diff++
+		}
+	}
+	return diff == 1
+}
+
+func result(word string) []string {
+	result := []string{word}
+	current := tracker[word]
+
+	for current != nil {
+		result = append([]string{current.(string)}, result...)
+		current = tracker[current.(string)]
+	}
+
+	return result
+}
+
+func buildDictionary(length int) ([]string, error) {
+	dictionary := []string{}
+
+	f, err := os.Open("../wordlist.txt")
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
-	defer resp.Body.Close()
-
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		dictionary = append(dictionary, Word{word: scanner.Text(), visited: false})
+		word := scanner.Text()
+		if len(word) == length {
+			dictionary = append(dictionary, word)
+		}
 	}
 
-	// The dictionary is ordered by ASCII value
 	return dictionary, nil
 }
